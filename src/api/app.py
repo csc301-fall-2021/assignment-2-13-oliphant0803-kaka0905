@@ -10,7 +10,7 @@ def timeseries_connection():
     try:
         conn = sqlite3.connect("databases/timeseries.db")
     except sqlite3.Error as e:
-        print(e)
+        return Response(str(e), status=400,)
     return conn
 
 def clear_timeseries():
@@ -27,7 +27,7 @@ def clear_timeseries():
         sql_query = """DROP TABLE IF EXISTS recovered"""
         cursor.execute(sql_query)
     except sqlite3.Error as e:
-        print(e)
+        return Response(str(e), status=400,)
 
 def timeseries_init():
     try:
@@ -46,7 +46,7 @@ def timeseries_init():
             'Province/State' text,
             'Country/Region' text NOT NULL,
             Lat real NOT NULL,
-            Long real NOT NULL
+            Long real NOT NULL,
             UNIQUE('Province/State', 'Country/Region')
         )"""
         cursor.execute(sql_query)
@@ -54,12 +54,12 @@ def timeseries_init():
             'Province/State' text,
             'Country/Region' text NOT NULL,
             Lat real NOT NULL,
-            Long real NOT NULL
+            Long real NOT NULL,
             UNIQUE('Province/State', 'Country/Region')
         )"""
         cursor.execute(sql_query)
     except sqlite3.Error as e:
-        print(e)
+        return Response(str(e), status=400,)
 
 app = Flask(__name__)
 
@@ -71,9 +71,11 @@ def addCol(colName):
     try:
         conn = timeseries_connection()
         cursor = conn.cursor()
-        cursor.execute('ALTER TABLE confirmed ADD COLUMN "{}" integer NOT NULL'.format(colName))
+        cursor.execute('ALTER TABLE confirmed ADD COLUMN "{}" integer'.format(colName))
+        cursor.execute('ALTER TABLE death ADD COLUMN "{}" integer'.format(colName))
+        cursor.execute('ALTER TABLE recovered ADD COLUMN "{}" integer'.format(colName))
     except sqlite3.Error as e:
-        print(e)
+        return Response(str(e), status=400,)
 
 @app.route('/time_series', methods=['GET'])
 def instruction():
@@ -82,6 +84,10 @@ def instruction():
                                 "where date year must be 2020 or 2021"}) 
 @app.route('/time_series/header', methods=['GET', 'POST'])
 def headerInfo():
+    """
+    GET: Show the list of column names to the users
+    POST: User can update the column names following the format of time series csv, the update will be done for all recovered, death, confirmed tables 
+    """
     if request.method == "GET":
         conn = timeseries_connection()
         cursor = conn.cursor()
@@ -131,40 +137,59 @@ def headerInfo():
         names = [description[0] for description in cursor.description]
         return jsonify({"Success": "header is generated, can process to /time_series/input to input csv body"+str(names)})
 
-@app.route('/time_series/view_data', methods=['GET'])
+@app.route('/time_series/view_data', methods=['POST'])
 
 def view():
+    """
+    Input a table name, return the data body of that table (confirmed, death, recovered)
+    """
+    req_Json = request.json
+    if req_Json['data'] not in ('confirmed', 'death', 'recovered'):
+        return Response("Invalid table name", status=400,)
     try:
         conn = timeseries_connection()
         cursor = conn.cursor()
-        cursor.execute('SELECT * from confirmed')
+        cursor.execute('SELECT * from {}'.format(req_Json['data']))
         data = cursor.fetchall()
     except sqlite3.Error as e:
-        print(e)
-    return jsonify({"TimeSeries": data})
+        return Response(str(e), status=400,)
+    return jsonify({req_Json['data']: data})
 
 @app.route('/time_series/add_data', methods=['POST'])
     # the given csv body only accepts comma-separated body
     # the input can contain one or more lines
 def input():
-    # users can parse in either one row data, or multiple row data as long as matching the validity with valid header 
-    # (can be updated and checked in /time_series/header)
+    """
+    users can parse in either one row data, or multiple row data as long as matching the validity with valid header 
+    (can be updated and checked in /time_series/header)
+    the post request will be ask for 3 fields where matching confirmed, death, recovered respectively
+    if you do not have anything to update for one field, write 'noupdate'.
+    """
     req_Json = request.json
-    inputdata = req_Json['data']
-    if not checkvalid(inputdata):
+    inputone(req_Json['confirmed'], 'confirmed')
+    inputone(req_Json['death'], 'death')
+    inputone(req_Json['recovered'], 'recovered')
+    return jsonify({"response": "update successfully"})
+
+def inputone(data, tablename):
+    """
+    Given a row of data for a table, input the data into that table
+    """
+    if data == 'noupdate':
+        return 
+    if not checkvalid(data):
         return Response("Invalid data body", status=400,)
     try:
         conn = timeseries_connection()
         cursor = conn.cursor()
-        data = inputdata.split(",")
+        data = data.split(",")
         data[0] = '"{}"'.format(data[0])
         data[1] = '"{}"'.format(data[1])
         data = ",".join(data)
-        cursor.execute('INSERT or REPLACE INTO confirmed VALUES ({})'.format(data))
+        cursor.execute('INSERT or REPLACE INTO {} VALUES ({})'.format(tablename, data))
         conn.commit()
     except sqlite3.Error as e:
-        print(e)
-    return jsonify({"response": inputdata})
+        return Response(str(e), status=400,)
 
 def checktype(row):
     """
@@ -206,11 +231,12 @@ def checkvalid(data):
         tableQuery = "select * from confirmed"  
         cursor.execute(tableQuery)
         names = [description[0] for description in cursor.description]
+        #the number of columns does not match the number of entries
         if len(names) != len(data.split(",")):
             return False
         return True
     except sqlite3.Error as e:
-        print(e)
+        return Response(str(e), status=400,)
 
 
 @app.route('/test', methods=['GET', 'POST'])
