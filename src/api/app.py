@@ -107,7 +107,6 @@ def headerInfo():
         try:
             start_check, end_check = header[4].split('/'), header[5].split('/')
             if not int(start_check[0]) in list(range(1, 13)) or not int(end_check[0]) in list(range(1, 13)):
-                print(start_check[0], end_check[0])
                 return Response("Invalid header, wrong date format in month",
                     status=400,
                 )
@@ -166,20 +165,21 @@ def input():
     if you do not have anything to update for one field, write 'noupdate'.
     """
     req_Json = request.json
-    inputone(req_Json['confirmed'], 'confirmed')
-    inputone(req_Json['death'], 'death')
-    inputone(req_Json['recovered'], 'recovered')
+    if not inputone(req_Json['confirmed'], 'confirmed'):
+        return Response("Invalid data for confirmed", status=400,)
+    if not inputone(req_Json['death'], 'death'):
+        return Response("Invalid data for death", status=400,)
+    if not inputone(req_Json['recovered'], 'recovered'):
+        return Response("Invalid data for recovered", status=400,)
     return jsonify({"response": "update successfully"})
 
 def inputone(data, tablename):
     """
     Given a row of data for a table, input the data into that table
     """
-    if data == 'noupdate':
-        return 
-    if not checkvalid(data):
-        return Response("Invalid data body", status=400,)
     try:
+        if not checkvalid(data):
+            return False
         conn = timeseries_connection()
         cursor = conn.cursor()
         data = data.split(",")
@@ -188,6 +188,7 @@ def inputone(data, tablename):
         data = ",".join(data)
         cursor.execute('INSERT or REPLACE INTO {} VALUES ({})'.format(tablename, data))
         conn.commit()
+        return True
     except sqlite3.Error as e:
         return Response(str(e), status=400,)
 
@@ -204,6 +205,8 @@ def checktype(row):
         for r in row[4:]:
             if not r.isnumeric():
                 return False
+            if int(r) < 0:
+                return False
         return True
     except (ValueError, TypeError, NameError):
         return False
@@ -215,14 +218,15 @@ def checkvalid(data):
     - The file received might not follow the naming convention;
     - The file received might miss any of the fields;
     - The file received might contain invalid values for any of the fields, 
-    such as a non-numeric value of deaths.
+    such as a non-numeric value of deaths, or any negative numbers.
     """
     #check comma separated:
     if not "," in data:
         return False
-    #check if one line:
-    if "/n" not in data:
-        return checktype(data)
+    #check if one line with valid data:
+
+    if not checktype(data):
+        return False
 
     #check if the number of commas matches the number of entries
     try:
@@ -238,6 +242,85 @@ def checkvalid(data):
     except sqlite3.Error as e:
         return Response(str(e), status=400,)
 
+@app.route('/time_series/interval', methods=['POST'])
+def interval():
+    """
+    given a interval of time period, the function will compute the statistics (confirmed, death, active, recovered) among that interval
+    for a given country, or province. (start_date, end_date) inclusive where active = confirmed - death - recovered
+    both start_date and end_date are in format of M/D/YY as in csv
+    one day if start_date = end_date
+    province can be none, then it will return for whole countries
+    countries can not be none, if province is none
+    """
+    req_Json = request.json
+    province = req_Json['Province/State']
+    country = req_Json['Country/Region']
+    s_date = req_Json['start']
+    e_date = req_Json['end']
+    if province == '':
+        confirmed, death, recovered = 0, 0, 0
+        try:
+            dates = generatedate(s_date, e_date) 
+            conn = timeseries_connection()
+            cursor = conn.cursor()
+            for date in dates:
+                selectQuery = 'select "{}" from confirmed where "Country/Region" = "{}"'.format(date, str(country))  
+                cursor.execute(selectQuery)
+                resultquery = cursor.fetchall()
+                for t in resultquery:
+                    confirmed += t[0]
+
+                selectQuery = 'select "{}" from death where "Country/Region" = "{}"'.format(date, str(country))  
+                cursor.execute(selectQuery)
+                resultquery = cursor.fetchall()
+                for t in resultquery:
+                    death += t[0]
+
+                selectQuery = 'select "{}" from recovered where "Country/Region" = "{}"'.format(date, str(country))  
+                cursor.execute(selectQuery)
+                resultquery = cursor.fetchall()
+                for t in resultquery:
+                    recovered += t[0]
+                
+            active = confirmed - death - recovered
+            if active < 0:
+                return Response("One of the data source is incorrect, confirmed: {}, death: {}, recovered: {}, active: {}".format(confirmed, death, recovered, active), 
+                status=400,)
+            return jsonify({"response": "confirmed: {}, death: {}, recovered: {}, active: {}".format(confirmed, death, recovered, active)})
+        except sqlite3.Error as e:
+            return Response(str(e), status=400,)
+
+    else:
+        return
+
+def generatedate(start, end):
+    dates = []
+    try:
+        start_check, end_check = start.split('/'), end.split('/')
+        if not int(start_check[0]) in list(range(1, 13)) or not int(end_check[0]) in list(range(1, 13)):
+            return Response("Invalid header, wrong date format in month",
+                status=400,
+            )
+        elif not int(start_check[1]) in list(range(1, 32)) or not int(end_check[1]) in list(range(1, 32)):
+            return Response("Invalid header, wrong date format in day",
+                status=400,
+            )
+        elif not int(start_check[2]) in [20,21] or not int(end_check[2]) in [20,21]:
+            return Response("Invalid header, wrong date format in year",
+                status=400,
+            )
+    except ValueError:
+        return Response("Invalid input",
+                status=400,
+            )
+    #all the date are correct, start to generate header from start date to end date
+    start_check[2], end_check[2] = "20" + str(start_check[2]), "20" + str(end_check[2])
+    #convert into panda datetime
+    s, e = '-'.join(start_check), '-'.join(end_check)
+    for d in pd.date_range(s, e).tolist():
+        df = dateformat(str(d.date()))
+        dates.append(df)
+    return dates
 
 @app.route('/test', methods=['GET', 'POST'])
 def test():
