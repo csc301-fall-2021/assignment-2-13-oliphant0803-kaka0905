@@ -22,6 +22,12 @@ def write_csv(rows, csv_name,header):
         myFile.writerows(rows)
     fp.close()
 
+#################################################################################################################
+#                                                                                                               #
+#                                             Time Series                                                       #
+#                                                                                                               #
+#################################################################################################################
+
 def timeseries_connection():
     conn = None
     try:
@@ -401,14 +407,22 @@ def generatedate(start, end):
         dates.append(df)
     return dates
 
-@app.route('/test', methods=['GET', 'POST'])
-def test():
-    if request.method == "GET":
-        return jsonify({"response": "You can enter your name in POST request"})
-    elif request.method == "POST":
-        req_Json = request.json
-        name = req_Json['name']
-        return jsonify({"response": "Hi " + name})
+
+
+#################################################################################################################
+#                                                                                                               #
+#                                           Daily Report                                                        #
+#                                                                                                               #
+#################################################################################################################
+
+@app.route('/daily_report', methods=['GET'])
+def dailyreport():
+    return jsonify({"response": "In /daily_report/, you will be entering data format for time series, please enter the header seperated by commas"},
+                    {"format":   "FIPS,Admin2,Province_State,Country_Region,Last_Update,Lat,Long,Confirmed,Deaths,Recovered,Active,Combined_Key,Incidence_Rate,Case-Fatality_Ratio"}) 
+
+
+
+
 
 if __name__ == '__main__':
     clear_timeseries()
