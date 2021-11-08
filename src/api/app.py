@@ -290,7 +290,12 @@ def interval():
     for location in locations.split(";"):
         location = location.split(",")
         key = ','.join(location) + ','
-        row = key + cp_interval(location[0], location[1], s_date, e_date)
+        r = cp_interval(location[0], location[1], s_date, e_date)
+        active = int(r.split(",")[3])
+        if active < 0:
+            return Response("One of the data source is incorrect, active: {}".format(active), 
+            status=400,)
+        row = key + r
         summary.append([row.strip()])
     rows = []
     for r in summary:
@@ -337,9 +342,6 @@ def cp_interval(province, country, s_date, e_date):
                     recovered += t[0]
                 
             active = confirmed - death - recovered
-            if active < 0:
-                return Response("One of the data source is incorrect, confirmed: {}, death: {}, recovered: {}, active: {}".format(confirmed, death, recovered, active), 
-                status=400,)
             return '{},{},{},{}'.format(confirmed, death, recovered, active)
         except sqlite3.Error as e:
             return Response(str(e), status=400,)
@@ -370,9 +372,6 @@ def cp_interval(province, country, s_date, e_date):
                     recovered += t[0]
                 
             active = confirmed - death - recovered
-            if active < 0:
-                return Response("One of the data source is incorrect, confirmed: {}, death: {}, recovered: {}, active: {}".format(confirmed, death, recovered, active), 
-                status=400,)
 
             return '{},{},{},{}'.format(confirmed, death, recovered, active)
         except sqlite3.Error as e:
@@ -415,16 +414,63 @@ def generatedate(start, end):
 #                                                                                                               #
 #################################################################################################################
 
+def dailyreport_connection():
+    conn = None
+    try:
+        conn = sqlite3.connect("databases/dailyreport.db")
+    except sqlite3.Error as e:
+        return Response(str(e), status=400,)
+    return conn
+
+def clear_dailyreport():
+    try:
+        # get the all the table names in dailyreport.db
+        conn = dailyreport_connection()
+        cursor = conn.cursor()
+        tablesquery = """SELECT * FROM dates"""
+        cursor.execute(tablesquery)
+        dates = cursor.fetchall()
+        for d in dates:
+            name = d[0]
+            remove_query = "DROP TABLE IF EXISTS '{}'".format(name)
+            cursor.execute(remove_query)
+        clean_query = """DELETE FROM dates"""
+        cursor.execute(clean_query)
+        conn.commit()
+    except sqlite3.Error as e:
+        return Response(str(e), status=400,)
+
+def dailyreport_init():
+    try:
+        conn = dailyreport_connection()
+        cursor = conn.cursor()
+
+        sql_query = """CREATE TABLE IF NOT EXISTS 'dates' (
+            stored_date text UNIQUE 
+        )"""
+        cursor.execute(sql_query)
+    except sqlite3.Error as e:
+        return Response(str(e), status=400,)
+
 @app.route('/daily_report', methods=['GET'])
 def dailyreport():
     return jsonify({"response": "In /daily_report/, you will be entering data format for time series, please enter the header seperated by commas"},
                     {"format":   "FIPS,Admin2,Province_State,Country_Region,Last_Update,Lat,Long,Confirmed,Deaths,Recovered,Active,Combined_Key,Incidence_Rate,Case-Fatality_Ratio"}) 
 
+@app.route('/daily_report/input', methods=['GET','POST'])
+def input_daily():
+    if request.method == "GET":
+        return jsonify()
+    elif request.method == "POST":
+        #check for input format
+        return jsonify()
 
-
-
+def valid_format():
+    return True
 
 if __name__ == '__main__':
     clear_timeseries()
     timeseries_init()
+    clear_dailyreport()
+    dailyreport_init()
     app.run(debug=True, port=9803)
