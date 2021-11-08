@@ -1,9 +1,26 @@
 from sqlite3.dbapi2 import IntegrityError
 from flask import Flask, request, jsonify, json, Response
-import datetime
 import pandas as pd
 from flask_sqlalchemy import SQLAlchemy
 import sqlite3
+import pandas
+import json
+import csv
+import os
+
+"""
+Users are allow to have csv options for each of the GET or POST call of the API
+"""
+
+def write_csv(rows, csv_name,header):
+    path = os.path.join('../timecsv/', csv_name)
+    fp = open(path, 'w')
+    myFile = csv.writer(fp)
+    if header:
+        myFile.writerow(rows)
+    else:
+        myFile.writerows(rows)
+    fp.close()
 
 def timeseries_connection():
     conn = None
@@ -134,6 +151,11 @@ def headerInfo():
         cursor.execute(tableQuery)
 
         names = [description[0] for description in cursor.description]
+        
+        #if csv option is true
+        path = req_Json['csv']
+        if path != '':
+            write_csv(names, path,True)
         return jsonify({"Success": "header is generated, can process to /time_series/input to input csv body"+str(names)})
 
 @app.route('/time_series/view_data', methods=['POST'])
@@ -152,6 +174,11 @@ def view():
         data = cursor.fetchall()
     except sqlite3.Error as e:
         return Response(str(e), status=400,)
+
+    path = req_Json['csv']
+    if path != '':
+        write_csv(data, path,False)
+    
     return jsonify({req_Json['data']: data})
 
 @app.route('/time_series/add_data', methods=['POST'])
@@ -245,18 +272,39 @@ def checkvalid(data):
 @app.route('/time_series/interval', methods=['POST'])
 def interval():
     """
+    Locations must be a  list of (Province/State, Country/Region) tuple
+    province can be none, then it will return for whole countries
+    countries can not be none
+    """
+    req_Json = request.json
+    locations = req_Json['locations']
+    s_date = req_Json['start']
+    e_date = req_Json['end']
+    summary = []
+    for location in locations.split(";"):
+        location = location.split(",")
+        key = ','.join(location) + ','
+        row = key + cp_interval(location[0], location[1], s_date, e_date)
+        summary.append([row.strip()])
+    rows = []
+    for r in summary:
+        t = []
+        for i in r[0].split(","):
+            t.append((i))
+        rows.append(t)
+    path = req_Json['csv']
+    if path != '':
+        write_csv(rows, path,False)
+    
+    return jsonify({"response": str(rows)})
+
+def cp_interval(province, country, s_date, e_date):
+    """
     given a interval of time period, the function will compute the statistics (confirmed, death, active, recovered) among that interval
     for a given country, or province. (start_date, end_date) inclusive where active = confirmed - death - recovered
     both start_date and end_date are in format of M/D/YY as in csv
     one day if start_date = end_date
-    province can be none, then it will return for whole countries
-    countries can not be none, if province is none
     """
-    req_Json = request.json
-    province = req_Json['Province/State']
-    country = req_Json['Country/Region']
-    s_date = req_Json['start']
-    e_date = req_Json['end']
     if province == '':
         confirmed, death, recovered = 0, 0, 0
         try:
@@ -286,12 +334,43 @@ def interval():
             if active < 0:
                 return Response("One of the data source is incorrect, confirmed: {}, death: {}, recovered: {}, active: {}".format(confirmed, death, recovered, active), 
                 status=400,)
-            return jsonify({"response": "confirmed: {}, death: {}, recovered: {}, active: {}".format(confirmed, death, recovered, active)})
+            return '{},{},{},{}'.format(confirmed, death, recovered, active)
         except sqlite3.Error as e:
             return Response(str(e), status=400,)
 
     else:
-        return
+        confirmed, death, recovered = 0, 0, 0
+        try:
+            dates = generatedate(s_date, e_date) 
+            conn = timeseries_connection()
+            cursor = conn.cursor()
+            for date in dates:
+                selectQuery = 'select "{}" from confirmed where "Country/Region" = "{}" and "Province/State" = "{}"'.format(date, str(country), str(province))  
+                cursor.execute(selectQuery)
+                resultquery = cursor.fetchall()
+                for t in resultquery:
+                    confirmed += t[0]
+
+                selectQuery = 'select "{}" from death where "Country/Region" = "{}" and "Province/State" = "{}"'.format(date, str(country), str(province))  
+                cursor.execute(selectQuery)
+                resultquery = cursor.fetchall()
+                for t in resultquery:
+                    death += t[0]
+
+                selectQuery = 'select "{}" from recovered where "Country/Region" = "{}" and "Province/State" = "{}"'.format(date, str(country), str(province))   
+                cursor.execute(selectQuery)
+                resultquery = cursor.fetchall()
+                for t in resultquery:
+                    recovered += t[0]
+                
+            active = confirmed - death - recovered
+            if active < 0:
+                return Response("One of the data source is incorrect, confirmed: {}, death: {}, recovered: {}, active: {}".format(confirmed, death, recovered, active), 
+                status=400,)
+
+            return '{},{},{},{}'.format(confirmed, death, recovered, active)
+        except sqlite3.Error as e:
+            return Response(str(e), status=400,)
 
 def generatedate(start, end):
     dates = []
