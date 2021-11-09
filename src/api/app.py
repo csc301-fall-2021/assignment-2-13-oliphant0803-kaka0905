@@ -1,12 +1,13 @@
+import datetime
 from sqlite3.dbapi2 import IntegrityError
 from flask import Flask, request, jsonify, json, Response
 import pandas as pd
-from flask_sqlalchemy import SQLAlchemy
 import sqlite3
 import pandas
 import json
 import csv
 import os
+import re
 
 """
 Users are allow to have csv options for each of the GET or POST call of the API
@@ -413,6 +414,15 @@ def generatedate(start, end):
 #                                           Daily Report                                                        #
 #                                                                                                               #
 #################################################################################################################
+def daily_csv(rows, csv_name,header):
+    path = os.path.join('../dailycsv/', csv_name)
+    fp = open(path, 'w')
+    myFile = csv.writer(fp)
+    if header:
+        myFile.writerow(rows)
+    else:
+        myFile.writerows(rows)
+    fp.close()
 
 def dailyreport_connection():
     conn = None
@@ -457,16 +467,141 @@ def dailyreport():
     return jsonify({"response": "In /daily_report/, you will be entering data format for time series, please enter the header seperated by commas"},
                     {"format":   "FIPS,Admin2,Province_State,Country_Region,Last_Update,Lat,Long,Confirmed,Deaths,Recovered,Active,Combined_Key,Incidence_Rate,Case-Fatality_Ratio"}) 
 
-@app.route('/daily_report/input', methods=['GET','POST'])
-def input_daily():
-    if request.method == "GET":
-        return jsonify()
-    elif request.method == "POST":
-        #check for input format
-        return jsonify()
+@app.route('/daily_report/view_data', methods=['POST'])
+def view_daily():
+    """
+    view a table for the given date
+    """
+    req_Json = request.json
+    date = req_Json['date']
+    month, day, year = date.split("-")
+    try:
+        datetime.datetime(int(year), int(month), int(day))
+    except ValueError:
+        return Response("Invalid date", status=400,)
+    try:
+        conn = dailyreport_connection()
+        cursor = conn.cursor()
+        view_query = """SELECT * FROM '{}'""".format(date)
+        cursor.execute(view_query)
+        result = cursor.fetchall()
+        path = req_Json['csv']
+        if path != '':
+            daily_csv(result, path,False)
+        
+        return jsonify({date: result})
+    except sqlite3.Error as e:
+        return Response(e, status=400,)
+    
 
-def valid_format():
+@app.route('/daily_report/update_data', methods=['POST'])
+def input_daily():
+    """
+    POST: user input the data date, data body and wether or whether or not to turn it into a csv output,
+    note the the data date has to be format of MM-DD-YYYY, and data body has to have valid row in each line
+    if the date already exsists, the new update will overwrite/replace the change if and only if the combined key are the same
+    """
+    #check for input date
+    req_Json = request.json
+    date = req_Json['date']
+    month, day, year = date.split("-")
+    try:
+        datetime.datetime(int(year), int(month), int(day))
+    except ValueError:
+        return Response("Invalid date, status=400,")
+
+    #check the data body is valid for each line
+    data = req_Json['data']
+    for row in data.splitlines():
+        if not valid_format(row):
+            return Response("Invalid data body, status=400,")
+
+    #create table
+    try:
+        conn = dailyreport_connection()
+        cursor = conn.cursor()
+
+        table_query = """CREATE TABLE IF NOT EXISTS '{}' (
+            FIPS text,
+            Admin2 text,
+            Province_State text,
+            Country_Region text NOT NULL,
+            Last_Update text NOT NULL,
+            Lat float NOT NULL,
+            Long float NOT NULL,
+            Confirmed int NOT NULL,
+            Deaths int NOT NULL,
+            Recovered int NOT NULL,
+            Active int NOT NULL,
+            Combined_Key text NOT NULL,
+            Incident_Rate float NOT NULL,
+            Case_Fatality_Ratio float NOT NULL
+        )""".format(date)
+        cursor.execute(table_query)
+        #input rows one each
+        for row in data.splitlines():
+            if not daily_input(date, row):
+                return Response("failed to update", status=400)
+    except sqlite3.Error as e:
+        return Response(e, status=400)
+    return jsonify({"response": "Update Daily Report Succuessfully"})
+
+def daily_input(date, row):
+    try:
+        row = split_row(row)
+        row[5],row[6],row[7],row[8],row[9],row[10] = float(row[5]), float(row[6]), int(row[7]), int(row[8]), int(row[9]), int(row[10])
+        row[12], row[13] = float(row[12]), float(row[13])
+        conn = dailyreport_connection()
+        cursor = conn.cursor()
+        cursor.execute('INSERT or REPLACE INTO "{}" VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)'.format(date), row)
+        conn.commit()
+        return True
+    except sqlite3.Error as e:
+        print(e)
+        return False
+
+def valid_format(row):
+    try:
+        row = split_row(row)
+        if len(row) != 14:
+            return False
+        float(row[5]), float(row[6]), int(row[7]), int(row[8]), int(row[9]), int(row[10]), float(row[12]), float(row[13])
+        if str(row[3]) == '':
+            return False
+        #check row[4] is date
+        datetime.datetime.strptime(row[4],'%Y-%m-%d %H:%M:%S')
+        #check row[11] is tuple key
+        if not('(' == row[11][0] and ')' == row[11][-1]):
+            return False
+        key = row[11][1:-1]
+        if row[0] == '' and row[1] == '':
+            if len(key.split(",")) != 1:
+                return False
+        elif row[1] == '' or row[0] == '':
+            if len(key.split(",")) != 2:
+                return False
+        elif len(key.split(",")) != 3:
+            return False
+        if len(key.split(",")) == 1:
+            if key.split(",")[0] == row[2]:
+                return True
+        if len(key.split(",")) == 2:
+            if key.split(",")[1] == row[2] and key.split(",")[0] in (row[1], row[0]):
+                return True
+        if len(key.split(",")) == 3:
+            if key.split(",")[0] == row[0] and key.split(",")[1] == row[1] and key.split(",")[2] == row[2]:
+                return True
+
+    except (ValueError, TypeError, NameError):
+        return False
+    
     return True
+
+def split_row(s):
+    """
+    Split `s` by top-level commas only. Commas within parentheses are ignored.
+    """
+    return re.split(r',(?!(?:[^(]*\([^)]*\))*[^()]*\))', s)
 
 if __name__ == '__main__':
     clear_timeseries()
