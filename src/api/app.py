@@ -442,12 +442,14 @@ def clear_dailyreport():
         dates = cursor.fetchall()
         for d in dates:
             name = d[0]
+            print(name)
             remove_query = "DROP TABLE IF EXISTS '{}'".format(name)
             cursor.execute(remove_query)
         clean_query = """DELETE FROM dates"""
         cursor.execute(clean_query)
         conn.commit()
     except sqlite3.Error as e:
+        print(e)
         return Response(str(e), status=400,)
 
 def dailyreport_init():
@@ -514,7 +516,7 @@ def input_daily():
     data = req_Json['data']
     for row in data.splitlines():
         if not valid_format(row):
-            return Response("Invalid data body, status=400,")
+            return Response("Invalid data body", status=400,)
 
     #create table
     try:
@@ -541,9 +543,15 @@ def input_daily():
         #input rows one each
         for row in data.splitlines():
             if not daily_input(date, row):
-                return Response("failed to update", status=400)
+                return Response("failed to update", status=400,)
+
+        #update dates
+        conn = dailyreport_connection()
+        cursor = conn.cursor()
+        cursor.execute("INSERT or REPLACE INTO dates VALUES ('{}')".format(date))
+        conn.commit()
     except sqlite3.Error as e:
-        return Response(e, status=400)
+        return Response(str(e), status=400)
     return jsonify({"response": "Update Daily Report Succuessfully"})
 
 def daily_input(date, row):
@@ -555,6 +563,10 @@ def daily_input(date, row):
         cursor = conn.cursor()
         cursor.execute('INSERT or REPLACE INTO "{}" VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)'.format(date), row)
         conn.commit()
+
+        #also check if any of the death,recovered,confirmd, active are negative numbers
+        if row[7] < 0 or row[8] < 0 or row[9] < 0 or row[10] < 0:
+            return False
         return True
     except sqlite3.Error as e:
         print(e)
@@ -602,6 +614,65 @@ def split_row(s):
     Split `s` by top-level commas only. Commas within parentheses are ignored.
     """
     return re.split(r',(?!(?:[^(]*\([^)]*\))*[^()]*\))', s)
+
+@app.route('/daily_report/interval', methods=['POST'])
+def daily_summary():
+    """
+    Users provides time interval (start_time, end_time), as well as the province and country users want to do analysis on
+    users can also input csv format option providing the path.
+    Locations must be a  list of (Admin2, Province/State, Country/Region) seperated by ;
+    where Country/Region must be not null
+    """
+    req_Json = request.json
+    locations = req_Json['locations']
+    s_date = req_Json['start']
+    e_date = req_Json['end']
+    summary = []
+    for location in locations.split(";"):
+        t = [location]
+        for i in cp_interval(location, s_date, e_date):
+            t.append(i)
+        summary.append((t))
+
+    path = req_Json['csv']
+    if path != '':
+        daily_csv(summary, path,False)
+    return jsonify({"response":str(summary)})
+
+def cp_interval(key, s_date, e_date):
+    """
+    (start_date, end_date) inclusive where active = confirmed - death - recovered
+    both start_date and end_date are in format of M/D/YY as in csv
+    one day if start_date = end_date
+    """
+    confirmed, death, recovered,active = 0, 0, 0, 0
+    try:
+        dates = generatedate(s_date, e_date)
+        for date in dates:
+            conn = dailyreport_connection()
+            cursor = conn.cursor()
+            selectQuery = """SELECT Confirmed, Deaths, Recovered, Active from '{}' 
+            where Combined_Key = '{}' """.format(date, key)
+            cursor.execute(selectQuery)
+            result = cursor.fetchall()
+            if result != [] and len(result[0]) == 4:
+                confirmed += int(result[0][0])
+                death += int(result[0][1])
+                recovered += int(result[0][2])
+                active += int(result[0][3])
+        return [confirmed, death, recovered, active]
+    except sqlite3.Error as e:
+        print(e)
+        return Response(str(e), status=400,)
+
+
+def generatedate(s, e):
+    dates = []
+    for d in pd.date_range(s, e).tolist():
+        df = dateformat(str(d.date()))
+        df = "-".join(df.split("/"))
+        dates.append(df)
+    return dates
 
 if __name__ == '__main__':
     clear_timeseries()
