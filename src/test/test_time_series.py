@@ -1,4 +1,6 @@
-import app
+import sys, os
+sys.path.append(os.path.abspath(os.path.join('..', 'api')))
+from app import *
 import unittest
 from unittest.mock import MagicMock,Mock,patch
 import sqlite3
