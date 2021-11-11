@@ -9,11 +9,20 @@ import csv
 import os
 import re
 
-"""
-Users are allow to have csv options for each of the GET or POST call of the API
-"""
 
 def write_csv(rows, csv_name,header):
+    """
+    Helper function for users are allow to have csv options for each of the GET or POST call of the API
+
+    Inputs
+    ----------
+    rows: str
+        A string that represents a row of time_series data
+    csv_name: str
+        User's inputted path to csv file name
+    header: bool
+        A identifier which idicates whether row is header or data body
+    """
     path = os.path.join('../timecsv/', csv_name)
     fp = open(path, 'w')
     myFile = csv.writer(fp)
@@ -30,6 +39,13 @@ def write_csv(rows, csv_name,header):
 #################################################################################################################
 
 def timeseries_connection():
+    """
+    For sqlite database connection to timeseries.db
+
+    Returns
+    ----------
+    conn: Sqlite3 Connecter Object
+    """
     conn = None
     try:
         conn = sqlite3.connect("databases/timeseries.db")
@@ -38,6 +54,13 @@ def timeseries_connection():
     return conn
 
 def clear_timeseries():
+    """
+    Clear the timeseries.db when flask app first launches
+
+    Returns
+    ----------
+    Status 400 if failed to clean
+    """
     try:
         conn = timeseries_connection()
         cursor = conn.cursor()
@@ -54,6 +77,14 @@ def clear_timeseries():
         return Response(str(e), status=400,)
 
 def timeseries_init():
+    """
+    Initialize the timeseries.db when flask app first launched with 3 empty tables 
+    which stores confirmed, death and recovered data
+
+    Returns
+    ----------
+    Status 400 if failed to create tables
+    """
     try:
         conn = timeseries_connection()
         cursor = conn.cursor()
@@ -88,6 +119,16 @@ def timeseries_init():
 app = Flask(__name__)
 
 def dateformat(date):
+    """
+    Input
+    ----------
+    date: str
+        convert YYYY-MM-DD string to YYYY/MM/DD for csv usage
+
+    Returns: str
+    ----------
+    str: YYYY/MM/DD
+    """
     date = str(date).split('-')
     return date[1] + '/' + date[2] + '/' + date[0]
 
@@ -103,6 +144,9 @@ def addCol(colName):
 
 @app.route('/time_series', methods=['GET'])
 def instruction():
+    """
+    GET requests for instructions for time_series
+    """
     return jsonify({"response": "In /time_series/header, you will be entering data format for time series, please enter the header seperated by commas" + 
                                 " expected format: Province/State,Country/Region,Lat,Long, 1/22/20(start date), 10/06/21(end date)" +
                                 "where date year must be 2020 or 2021"}) 
@@ -111,6 +155,10 @@ def headerInfo():
     """
     GET: Show the list of column names to the users
     POST: User can update the column names following the format of time series csv, the update will be done for all recovered, death, confirmed tables 
+
+    header: {Province/State, Country/Region, Lat, Long, Start_Date, End_Date}
+
+    Everytime when updating the header, the new interval should either covers the previous interval, or the new start_date is after the old end_date
     """
     if request.method == "GET":
         conn = timeseries_connection()
@@ -166,10 +214,11 @@ def headerInfo():
         return jsonify({"Success": "header is generated, can process to /time_series/input to input csv body"+str(names)})
 
 @app.route('/time_series/view_data', methods=['POST'])
-
 def view():
     """
     Input a table name, return the data body of that table (confirmed, death, recovered)
+    data: table name, in confirmed, death or recovered
+    csv: csv file name that to store with, or empty string indicating not to store
     """
     req_Json = request.json
     if req_Json['data'] not in ('confirmed', 'death', 'recovered'):
@@ -190,13 +239,17 @@ def view():
 
 @app.route('/time_series/add_data', methods=['POST'])
     # the given csv body only accepts comma-separated body
-    # the input can contain one or more lines
+    # the input can contain one line
 def input():
     """
     users can parse in either one row data, or multiple row data as long as matching the validity with valid header 
     (can be updated and checked in /time_series/header)
     the post request will be ask for 3 fields where matching confirmed, death, recovered respectively
     if you do not have anything to update for one field, write 'noupdate'.
+
+    confirmed: one line data body to input in confirmed table storing number of confirmed cases
+    death: one line data body to input in death table storing number of death cases
+    recovered: one line data body to input in recovered table storing number of recovered cases
     """
     req_Json = request.json
     if not inputone(req_Json['confirmed'], 'confirmed'):
@@ -282,6 +335,10 @@ def interval():
     Locations must be a  list of (Province/State, Country/Region) tuple
     province can be none, then it will return for whole countries
     countries can not be none
+
+    locations: a string of province, country indicate the location, province can be emptry
+    start: start dates of the interval
+    end: end dates of the interval
     """
     req_Json = request.json
     locations = req_Json['locations']
@@ -415,6 +472,18 @@ def generatedate(start, end):
 #                                                                                                               #
 #################################################################################################################
 def daily_csv(rows, csv_name,header):
+    """
+    Helper function for users are allow to have csv options for each of the GET or POST call of the API
+
+    Inputs
+    ----------
+    rows: str
+        A string that represents a row of daily report data
+    csv_name: str
+        User's inputted path to csv file name
+    header: bool
+        A identifier which idicates whether row is header or data body
+    """
     path = os.path.join('../dailycsv/', csv_name)
     fp = open(path, 'w')
     myFile = csv.writer(fp)
@@ -425,6 +494,13 @@ def daily_csv(rows, csv_name,header):
     fp.close()
 
 def dailyreport_connection():
+    """
+    For sqlite database connection to timeseries.db
+
+    Returns
+    ----------
+    conn: Sqlite3 Connecter Object
+    """
     conn = None
     try:
         conn = sqlite3.connect("databases/dailyreport.db")
@@ -433,6 +509,14 @@ def dailyreport_connection():
     return conn
 
 def clear_dailyreport():
+    """
+    Clear all the tables in dailyreport.db which contains all dates user previously stored
+    empty the dates table for each dates removed
+
+    Returns
+    ----------
+    Status 400 if failed to create tables
+    """
     try:
         # get the all the table names in dailyreport.db
         conn = dailyreport_connection()
@@ -453,6 +537,13 @@ def clear_dailyreport():
         return Response(str(e), status=400,)
 
 def dailyreport_init():
+    """
+    Initialize the dates table to store all the potential daily reports by dates
+
+    Returns
+    ----------
+    Status 400 if failed to create tables
+    """
     try:
         conn = dailyreport_connection()
         cursor = conn.cursor()
@@ -473,6 +564,9 @@ def dailyreport():
 def view_daily():
     """
     view a table for the given date
+
+    date: table name which indicates which date for daily report to view
+    csv: csv file name to export to or emptry string
     """
     req_Json = request.json
     date = req_Json['date']
@@ -502,6 +596,9 @@ def input_daily():
     POST: user input the data date, data body and wether or whether or not to turn it into a csv output,
     note the the data date has to be format of MM-DD-YYYY, and data body has to have valid row in each line
     if the date already exsists, the new update will overwrite/replace the change if and only if the combined key are the same
+
+    date: string indicates the name of the date the data is describing
+    data: data body for daily report format, with combined key in (), and /n for new line
     """
     #check for input date
     req_Json = request.json
@@ -510,7 +607,7 @@ def input_daily():
     try:
         datetime.datetime(int(year), int(month), int(day))
     except ValueError:
-        return Response("Invalid date, status=400,")
+        return Response("Invalid date", status=400,)
 
     #check the data body is valid for each line
     data = req_Json['data']
@@ -555,6 +652,18 @@ def input_daily():
     return jsonify({"response": "Update Daily Report Succuessfully"})
 
 def daily_input(date, row):
+    """
+    Inputs
+    ---------
+    date: string
+        name of the table
+    row: string
+        one row from the parent data 
+
+    Return
+    ---------
+    Boolean: valid or invalid format for one row of data body 
+    """
     try:
         row = split_row(row)
         row[5],row[6],row[7],row[8],row[9],row[10] = float(row[5]), float(row[6]), int(row[7]), int(row[8]), int(row[9]), int(row[10])
@@ -573,6 +682,16 @@ def daily_input(date, row):
         return False
 
 def valid_format(row):
+    """
+    Inputs
+    ---------
+    row: string
+        one row from the parent data 
+
+    Return
+    ---------
+    Boolean: valid or invalid format for one row of data body 
+    """
     try:
         row = split_row(row)
         if len(row) != 14:
