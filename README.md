@@ -1,9 +1,9 @@
 [![Open in Visual Studio Code](https://classroom.github.com/assets/open-in-vscode-f059dc9a6f8d3a56e377f745f24479a46679e63a5d9fe6f495e02850cd0d8118.svg)](https://classroom.github.com/online_ide?assignment_repo_id=6163542&assignment_repo_type=AssignmentRepo)
 # COVID DATA API
-The Covid Data API is able to do the following for updating, summarizing and viewing covid data by calling the specific requests which will be described below in details. This API can be used for any web applications, and are able to be generated as csv files for users to export, a status of 400 will be retruned for any invalid input regarding to data format and unrealistic data (i.e. active cases of -1).
+The Covid Data API is able to do the following for updating, summarizing and viewing covid data by calling the specific requests which will be described below in details. This API can be used for any web applications, and are able to be generated as csv files for users to export, a status of 400 will be retruned for any invalid input regarding to data format and unrealistic data (i.e. active cases of -1). 
 
 ## Functionalities and Constraints
-
+More information for testing format can be checked via test/test.py
 ### Time Series Description (/time_series): 
 GET method which returns a json instruction telling the user the steps to follow to begin with using time_series data.
 
