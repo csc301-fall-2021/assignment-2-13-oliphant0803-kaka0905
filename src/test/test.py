@@ -13,7 +13,6 @@ import json
 #                                             Time Series                                                       #
 #                                                                                                               #
 #################################################################################################################
-
 # Test database connection
 class TestConnectionTS(unittest.TestCase):
     def test_sqlite3_connect_success_ts(self):
@@ -151,8 +150,8 @@ class TestAddData(unittest.TestCase):
     def test_data_successfully_added_another(self):
         self.setup_header()
         confirm = "Queensland,Australia,-27.4698,153.0251,0,0,0,0,0,0,0,1,3,2,3,2,2,3,3"
-        death = "Queensland,Australia,-27.4698,153.0251,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0"
-        recover = "Queensland,Australia,-27.4698,153.0251,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0"
+        death = "Queensland,Australia,-27.4698,153.0251,0,0,0,0,0,0,0,0,0,0,0,0,4,0,0"
+        recover = "Queensland,Australia,-27.4698,153.0251,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0"
         info = {"confirmed": confirm, "death": death, "recovered": recover}
         info = json.dumps(info)
         request_json = json.loads(info)
@@ -258,7 +257,7 @@ class TestAddData(unittest.TestCase):
         request_json = json.loads(info)
         resp = requests.post(url_view_data, json = request_json)
         response_json = json.loads(resp.text)
-        exp = { "death": [ [ "", "Afghanistan", 33.93911, 67.709953, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ], [ "Queensland", "Australia", -27.4698, 153.0251, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ] ] }
+        exp = { "death": [ [ "", "Afghanistan", 33.93911, 67.709953, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ], [ "Queensland", "Australia", -27.4698, 153.0251, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0 ] ] }
         assert response_json == exp 
         assert resp.status_code == 200
 
@@ -268,12 +267,42 @@ class TestAddData(unittest.TestCase):
         request_json = json.loads(info)
         resp = requests.post(url_view_data, json = request_json)
         response_json = json.loads(resp.text)
-        exp = { "recovered": [ [ "", "Afghanistan", 33.93911, 67.709953, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ], [ "Queensland", "Australia", -27.4698, 153.0251, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ] ] }
+        exp = { "recovered": [ [ "", "Afghanistan", 33.93911, 67.709953, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ], [ "Queensland", "Australia", -27.4698, 153.0251, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0 ] ] }
         assert response_json == exp 
         assert resp.status_code == 200
 
 # Test time_series/interval
 url_interval = 'http://127.0.0.1:9803/time_series/interval'
+class TestInterval(unittest.TestCase):
+    def test_valid_interval(self):
+        info = {"locations":",Afghanistan;Queensland,Australia","start":"01/29/20","end":"01/30/20","csv":""}
+        info = json.dumps(info)
+        request_json = json.loads(info)
+        resp = requests.post(url_interval, json = request_json)
+        response_json = json.loads(resp.text)
+        exp = { "response": "[['', 'Afghanistan', '0', '0', '0', '0'], ['Queensland', 'Australia', '4', '0', '0', '4']]" }
+        assert response_json == exp
+        assert resp.status_code == 200
+
+    def test_valid_interval_same_date(self):
+        info = {"locations":",Afghanistan;Queensland,Australia","start":"01/29/20","end":"01/29/20","csv":""}
+        info = json.dumps(info)
+        request_json = json.loads(info)
+        resp = requests.post(url_interval, json = request_json)
+        response_json = json.loads(resp.text)
+        exp = { "response": "[['', 'Afghanistan', '0', '0', '0', '0'], ['Queensland', 'Australia', '1', '0', '0', '1']]" }
+        assert response_json == exp
+        assert resp.status_code == 200
+
+    def test_valid_longer_interval(self):
+        info = {"locations":",Afghanistan;Queensland,Australia","start":"01/29/20","end":"02/04/20","csv":""}
+        info = json.dumps(info)
+        request_json = json.loads(info)
+        resp = requests.post(url_interval, json = request_json)
+        response_json = json.loads(resp.text)
+        exp = { "response": "[['', 'Afghanistan', '0', '0', '0', '0'], ['Queensland', 'Australia', '16', '4', '1', '11']]" }
+        assert response_json == exp
+        assert resp.status_code == 200
 
 
 #################################################################################################################
