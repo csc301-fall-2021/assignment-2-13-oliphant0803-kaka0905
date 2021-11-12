@@ -272,7 +272,8 @@ class TestAddData(unittest.TestCase):
         assert response_json == exp 
         assert resp.status_code == 200
 
-
+# Test time_series/interval
+url_interval = 'http://127.0.0.1:9803/time_series/interval'
 
 
 
