@@ -385,19 +385,19 @@ def cp_interval(province, country, s_date, e_date):
                 cursor.execute(selectQuery)
                 resultquery = cursor.fetchall()
                 for t in resultquery:
-                    confirmed += t[0]
+                    confirmed += int(t[0])
 
                 selectQuery = 'select "{}" from death where "Country/Region" = "{}"'.format(date, str(country))  
                 cursor.execute(selectQuery)
                 resultquery = cursor.fetchall()
                 for t in resultquery:
-                    death += t[0]
+                    death += int(t[0])
 
                 selectQuery = 'select "{}" from recovered where "Country/Region" = "{}"'.format(date, str(country))  
                 cursor.execute(selectQuery)
                 resultquery = cursor.fetchall()
                 for t in resultquery:
-                    recovered += t[0]
+                    recovered += int(t[0])
                 
             active = confirmed - death - recovered
             return '{},{},{},{}'.format(confirmed, death, recovered, active)
@@ -411,23 +411,26 @@ def cp_interval(province, country, s_date, e_date):
             conn = timeseries_connection()
             cursor = conn.cursor()
             for date in dates:
+                print(str(country), str(province))
+
                 selectQuery = 'select "{}" from confirmed where "Country/Region" = "{}" and "Province/State" = "{}"'.format(date, str(country), str(province))  
+                print(selectQuery)
                 cursor.execute(selectQuery)
                 resultquery = cursor.fetchall()
                 for t in resultquery:
-                    confirmed += t[0]
+                    confirmed += int(t[0])
 
                 selectQuery = 'select "{}" from death where "Country/Region" = "{}" and "Province/State" = "{}"'.format(date, str(country), str(province))  
                 cursor.execute(selectQuery)
                 resultquery = cursor.fetchall()
                 for t in resultquery:
-                    death += t[0]
+                    death += int(t[0])
 
                 selectQuery = 'select "{}" from recovered where "Country/Region" = "{}" and "Province/State" = "{}"'.format(date, str(country), str(province))   
                 cursor.execute(selectQuery)
                 resultquery = cursor.fetchall()
                 for t in resultquery:
-                    recovered += t[0]
+                    recovered += int(t[0])
                 
             active = confirmed - death - recovered
 
@@ -632,7 +635,7 @@ def input_daily():
             Deaths int NOT NULL,
             Recovered int NOT NULL,
             Active int NOT NULL,
-            Combined_Key text NOT NULL,
+            Combined_Key text UNIQUE,
             Incident_Rate float NOT NULL,
             Case_Fatality_Ratio float NOT NULL
         )""".format(date)
@@ -670,7 +673,7 @@ def daily_input(date, row):
         row[12], row[13] = float(row[12]), float(row[13])
         conn = dailyreport_connection()
         cursor = conn.cursor()
-        cursor.execute('INSERT or REPLACE INTO "{}" VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)'.format(date), row)
+        cursor.execute('INSERT OR REPLACE INTO "{}" VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)'.format(date), row)
         conn.commit()
 
         #also check if any of the death,recovered,confirmd, active are negative numbers
@@ -749,7 +752,7 @@ def daily_summary():
     summary = []
     for location in locations.split(";"):
         t = [location]
-        for i in cp_interval(location, s_date, e_date):
+        for i in cd_interval(location, s_date, e_date):
             t.append(i)
         summary.append((t))
 
@@ -758,7 +761,7 @@ def daily_summary():
         daily_csv(summary, path,False)
     return jsonify({"response":str(summary)})
 
-def cp_interval(key, s_date, e_date):
+def cd_interval(key, s_date, e_date):
     """
     (start_date, end_date) inclusive where active = confirmed - death - recovered
     both start_date and end_date are in format of M/D/YY as in csv
@@ -766,7 +769,7 @@ def cp_interval(key, s_date, e_date):
     """
     confirmed, death, recovered,active = 0, 0, 0, 0
     try:
-        dates = generatedate(s_date, e_date)
+        dates = gdate(s_date, e_date)
         for date in dates:
             conn = dailyreport_connection()
             cursor = conn.cursor()
@@ -785,7 +788,7 @@ def cp_interval(key, s_date, e_date):
         return Response(str(e), status=400,)
 
 
-def generatedate(s, e):
+def gdate(s, e):
     dates = []
     for d in pd.date_range(s, e).tolist():
         df = dateformat(str(d.date()))
