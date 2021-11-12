@@ -348,7 +348,13 @@ def interval():
     for location in locations.split(";"):
         location = location.split(",")
         key = ','.join(location) + ','
-        r = cp_interval(location[0], location[1], s_date, e_date)
+        tf = cp_interval(location[0], location[1], s_date, e_date)
+        r = ''
+        if type(tf) != bool:
+            r = tf
+        else:
+            return Response("One of the data source is incorrect", 
+            status=400,)
         active = int(r.split(",")[3])
         if active < 0:
             return Response("One of the data source is incorrect, active: {}".format(active), 
@@ -384,6 +390,8 @@ def cp_interval(province, country, s_date, e_date):
                 selectQuery = 'select "{}" from confirmed where "Country/Region" = "{}"'.format(date, str(country))  
                 cursor.execute(selectQuery)
                 resultquery = cursor.fetchall()
+                if resultquery == []:
+                    return False
                 for t in resultquery:
                     confirmed += int(t[0])
 
@@ -417,6 +425,8 @@ def cp_interval(province, country, s_date, e_date):
                 print(selectQuery)
                 cursor.execute(selectQuery)
                 resultquery = cursor.fetchall()
+                if resultquery == []:
+                    return False
                 for t in resultquery:
                     confirmed += int(t[0])
 
@@ -436,7 +446,7 @@ def cp_interval(province, country, s_date, e_date):
 
             return '{},{},{},{}'.format(confirmed, death, recovered, active)
         except sqlite3.Error as e:
-            return Response(str(e), status=400,)
+            return False
 
 def generatedate(start, end):
     dates = []
