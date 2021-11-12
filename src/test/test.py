@@ -324,6 +324,16 @@ class TestInterval(unittest.TestCase):
         assert response_json == exp
         assert resp.status_code == 200
 
+    def test_valid_diff_csv(self):
+        info = {"locations":",Afghanistan;Queensland,Australia","start":"01/29/20","end":"01/30/20","csv":"header.csv"}
+        info = json.dumps(info)
+        request_json = json.loads(info)
+        resp = requests.post(url_interval, json = request_json)
+        response_json = json.loads(resp.text)
+        exp = { "response": "[['', 'Afghanistan', '0', '0', '0', '0'], ['Queensland', 'Australia', '4', '0', '0', '4']]" }
+        assert response_json == exp
+        assert resp.status_code == 200
+
     def test_invalid_province_interval(self):
         info = {"locations":"a,Afghanistan;Queensland,Australia","start":"01/29/20","end":"01/30/20","csv":""}
         info = json.dumps(info)
