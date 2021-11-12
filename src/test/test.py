@@ -15,15 +15,15 @@ import json
 #################################################################################################################
 
 # Test database connection
-class TestConnection(unittest.TestCase):
-    def test_sqlite3_connect_success(self):
+class TestConnectionTS(unittest.TestCase):
+    def test_sqlite3_connect_success_ts(self):
         sqlite3.connect = MagicMock(return_value='connection succeeded')
 
         dbc = app.timeseries_connection()
         sqlite3.connect.assert_called_with("databases/timeseries.db")
         self.assertEqual(dbc, 'connection succeeded')
 
-    def test_sqlite3_connect_fail(self):
+    def test_sqlite3_connect_fail_ts(self):
         sqlite3.connect = MagicMock(return_value = 'connection failed')
 
         dbc = app.timeseries_connection()
@@ -275,6 +275,27 @@ class TestAddData(unittest.TestCase):
 # Test time_series/interval
 url_interval = 'http://127.0.0.1:9803/time_series/interval'
 
+
+#################################################################################################################
+#                                                                                                               #
+#                                           Daily Report                                                        #
+#                                                                                                               #
+#################################################################################################################
+# Test database connection
+class TestConnectionDR(unittest.TestCase):
+    def test_sqlite3_connect_success_dr(self):
+        sqlite3.connect = MagicMock(return_value='connection succeeded')
+
+        dbc = app.dailyreport_connection()
+        sqlite3.connect.assert_called_with("databases/dailyreport.db")
+        self.assertEqual(dbc, 'connection succeeded')
+
+    def test_sqlite3_connect_fail_dr(self):
+        sqlite3.connect = MagicMock(return_value = 'connection failed')
+
+        dbc = app.dailyreport_connection()
+        sqlite3.connect.assert_called_with("databases/dailyreport.db")
+        self.assertEqual(dbc, 'connection failed')
 
 
 if __name__ == "__main__":
