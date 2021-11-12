@@ -345,7 +345,7 @@ def interval():
     s_date = req_Json['start']
     e_date = req_Json['end']
     summary = []
-    for location in locations.split(";"):
+    for location in list(dict.fromkeys(locations.split(";"))):
         location = location.split(",")
         key = ','.join(location) + ','
         tf = cp_interval(location[0], location[1], s_date, e_date)
@@ -384,6 +384,8 @@ def cp_interval(province, country, s_date, e_date):
         confirmed, death, recovered = 0, 0, 0
         try:
             dates = generatedate(s_date, e_date) 
+            if dates == []: #when e_date > s_date
+                return False
             conn = timeseries_connection()
             cursor = conn.cursor()
             for date in dates:
@@ -416,6 +418,8 @@ def cp_interval(province, country, s_date, e_date):
         confirmed, death, recovered = 0, 0, 0
         try:
             dates = generatedate(s_date, e_date) 
+            if dates == []: #when e_date > s_date
+                return False
             conn = timeseries_connection()
             cursor = conn.cursor()
             for date in dates:
@@ -760,9 +764,12 @@ def daily_summary():
     s_date = req_Json['start']
     e_date = req_Json['end']
     summary = []
-    for location in locations.split(";"):
+    for location in list(dict.fromkeys(locations.split(";"))):
         t = [location]
-        for i in cd_interval(location, s_date, e_date):
+        tf = cd_interval(location, s_date, e_date)
+        if type(tf) == bool:
+            return Response("Invalid Input", status=400,)
+        for i in tf:
             t.append(i)
         summary.append((t))
 
@@ -780,6 +787,8 @@ def cd_interval(key, s_date, e_date):
     confirmed, death, recovered,active = 0, 0, 0, 0
     try:
         dates = gdate(s_date, e_date)
+        if dates == []: #when e_date > s_date
+                return False
         for date in dates:
             conn = dailyreport_connection()
             cursor = conn.cursor()
@@ -795,7 +804,7 @@ def cd_interval(key, s_date, e_date):
         return [confirmed, death, recovered, active]
     except sqlite3.Error as e:
         print(e)
-        return Response(str(e), status=400,)
+        return False
 
 
 def gdate(s, e):
