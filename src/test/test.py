@@ -148,7 +148,23 @@ class TestAddData(unittest.TestCase):
         assert response_json == exp_json 
         assert resp.status_code == 200
 
-    def test_add_data_invalid_confirm(self):
+    def test_data_successfully_added_another(self):
+        self.setup_header()
+        confirm = "Queensland,Australia,-27.4698,153.0251,0,0,0,0,0,0,0,1,3,2,3,2,2,3,3"
+        death = "Queensland,Australia,-27.4698,153.0251,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0"
+        recover = "Queensland,Australia,-27.4698,153.0251,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0"
+        info = {"confirmed": confirm, "death": death, "recovered": recover}
+        info = json.dumps(info)
+        request_json = json.loads(info)
+        resp = requests.post(url_add_data, json = request_json)
+        response_json = json.loads(resp.text)
+        exp = add_data
+        exp = json.dumps(exp)
+        exp_json = json.loads(exp)
+        assert response_json == exp_json 
+        assert resp.status_code == 200
+
+    def test_add_data_invalid_confirm1(self):
         self.setup_header()
         confirm = ",Afghanistan,33.93911,67.709953,0,0,0,0,0,0,0,0,-1,0,0,0,0,0,0"
         death = ",Afghanistan,33.93911,67.709953,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0"
@@ -161,7 +177,20 @@ class TestAddData(unittest.TestCase):
         assert resp.text == exp 
         assert resp.status_code == 400
 
-    def test_add_data_invalid_death(self):
+    def test_add_data_invalid_confirm2(self):
+        self.setup_header()
+        confirm = ",Afghanistan,33.93911,67.709953,0,0,0,0,0,0,0,0,0,0,0,0,0,0"
+        death = ",Afghanistan,33.93911,67.709953,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0"
+        recover = ",Afghanistan,33.93911,67.709953,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0"
+        info = {"confirmed": confirm, "death": death, "recovered": recover}
+        info = json.dumps(info)
+        request_json = json.loads(info)
+        resp = requests.post(url_add_data, json = request_json)
+        exp = "Invalid data for confirmed"
+        assert resp.text == exp 
+        assert resp.status_code == 400
+
+    def test_add_data_invalid_death1(self):
         self.setup_header()
         confirm = ",Afghanistan,33.93911,67.709953,0,1,3,2,0,10,0,0,11,0,0,0,0,0,0"
         death = ",Afghanistan,33.93911,67.709953,0,1,0,0,-1,0,5,0,7,8,9,0,1,0,0"
@@ -174,7 +203,20 @@ class TestAddData(unittest.TestCase):
         assert resp.text == exp 
         assert resp.status_code == 400
 
-    def test_add_data_invalid_recover(self):
+    def test_add_data_invalid_death2(self):
+        self.setup_header()
+        confirm = ",Afghanistan,33.93911,67.709953,0,1,3,2,0,10,0,0,11,0,0,0,0,0,0"
+        death = ",Afghanistan,33.93911,67.709953,0,1,0,0,0,5,0,7,8,9,0,1,0,0"
+        recover = ",Afghanistan,33.93911,67.709953,0,0,0,0,0,2,0,0,0,0,0,3,0,0,0"
+        info = {"confirmed": confirm, "death": death, "recovered": recover}
+        info = json.dumps(info)
+        request_json = json.loads(info)
+        resp = requests.post(url_add_data, json = request_json)
+        exp = "Invalid data for death"
+        assert resp.text == exp 
+        assert resp.status_code == 400
+
+    def test_add_data_invalid_recover1(self):
         self.setup_header()
         confirm = ",Afghanistan,33.93911,67.709953,0,1,3,2,0,10,0,0,11,0,0,0,0,0,0"
         death = ",Afghanistan,33.93911,67.709953,0,1,0,0,0,0,5,0,7,8,9,0,1,0,0"
@@ -187,13 +229,46 @@ class TestAddData(unittest.TestCase):
         assert resp.text == exp
         assert resp.status_code == 400
 
-    def test_data_successfully_add_confirm(self):
+    def test_add_data_invalid_recover2(self):
+        self.setup_header()
+        confirm = ",Afghanistan,33.93911,67.709953,0,1,3,2,0,10,0,0,11,0,0,0,0,0,0"
+        death = ",Afghanistan,33.93911,67.709953,0,1,0,0,0,0,5,0,7,8,9,0,1,0,0"
+        recover = ",Afghanistan,33.93911,67.709953,0,0,0,0,0,2,0,0,0,0,3,0,0,0"
+        info = {"confirmed": confirm, "death": death, "recovered": recover}
+        info = json.dumps(info)
+        request_json = json.loads(info)
+        resp = requests.post(url_add_data, json = request_json)
+        exp = "Invalid data for recovered"
+        assert resp.text == exp
+        assert resp.status_code == 400
+
+    def test_data_successfully_added_confirmed(self):
         info = {"data": "confirmed", "csv": ""}
         info = json.dumps(info)
         request_json = json.loads(info)
         resp = requests.post(url_view_data, json = request_json)
         response_json = json.loads(resp.text)
-        exp = {"confirmed": [["","Afghanistan",33.93911,67.709953,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]]}
+        exp = {"confirmed": [["","Afghanistan",33.93911,67.709953,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],["Queensland","Australia",-27.4698,153.0251,0,0,0,0,0,0,0,1,3,2,3,2,2,3,3]]}
+        assert response_json == exp 
+        assert resp.status_code == 200
+
+    def test_data_successfully_added_death(self):
+        info = {"data": "death", "csv": ""}
+        info = json.dumps(info)
+        request_json = json.loads(info)
+        resp = requests.post(url_view_data, json = request_json)
+        response_json = json.loads(resp.text)
+        exp = { "death": [ [ "", "Afghanistan", 33.93911, 67.709953, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ], [ "Queensland", "Australia", -27.4698, 153.0251, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ] ] }
+        assert response_json == exp 
+        assert resp.status_code == 200
+
+    def test_data_successfully_added_recovered(self):
+        info = {"data": "recovered", "csv": ""}
+        info = json.dumps(info)
+        request_json = json.loads(info)
+        resp = requests.post(url_view_data, json = request_json)
+        response_json = json.loads(resp.text)
+        exp = { "recovered": [ [ "", "Afghanistan", 33.93911, 67.709953, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ], [ "Queensland", "Australia", -27.4698, 153.0251, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ] ] }
         assert response_json == exp 
         assert resp.status_code == 200
 
