@@ -12,6 +12,11 @@ We are checking the functionality of our program by sending request.post and che
 functions defined in app.py directly, since checking these functions is restricted to a connecting to our server, which means we still need to send request and
 get our response.
 
+## Instruction on Testing
+Install the required modules from the requirements.txt(pip install -r requirements.txt) first.
+Run app.py stored in src/api first: python app.py
+Open another terminal, run the test stored in src/test: python test.py
+
 ### Time Series Description (/time_series): 
 GET method which returns a json instruction telling the user the steps to follow to begin with using time_series data.
 
