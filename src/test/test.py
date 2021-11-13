@@ -386,6 +386,17 @@ class TestUpdateData(unittest.TestCase):
         assert response_json == exp
         assert resp.status_code == 200
 
+    def test_data_successfully_added(self):
+        self.test_valid_update()
+        info = {"date": "06-05-2021","csv": ""}
+        info = json.dumps(info)
+        request_json = json.loads(info)
+        resp = requests.post("http://127.0.0.1:9803/daily_report/view_data", json = request_json)
+        response_json = json.loads(resp.text)
+        exp = { "06-05-2021": [ [ "45001", "Abbeville", "South Carolina", "US", "2020-06-08 03:33:22", 34.22333378, -82.46170658, 51, 0, 0, 51, "(Abbeville, South Carolina, US)", 207.9341134260203, 0.0 ], [ "", "", "", "Afghanistan", "2021-01-07 05:22:03", 33.93911, 67.709953, 53105, 2244, 42666, 8195, "(Afghanistan)", 136.4173212518869, 4.22559081065813 ] ] }
+        assert response_json == exp
+        assert resp.status_code == 200
+
     def test_invalid_data1(self):
         info = {"date": "06-05-2021","data": ",,Abbeville,South Carolina,US,2020-06-08 03:33:22,34.22333378,-82.46170658,51,0,0,51,(Abbeville, South Carolina, US),207.9341134260203,0.0\n,,,Afghanistan,2021-01-07 05:22:03,33.93911,67.709953,53105,2244,42666,8195,(Afghanistan),136.4173212518869,4.22559081065813"}
         info = json.dumps(info)
@@ -439,22 +450,13 @@ class TestUpdateData(unittest.TestCase):
         exp = "Invalid data body"
         assert resp.text == exp
         assert resp.status_code == 400
-    
-    def test_data_successfully_added(self):
-        info = {"date": "06-05-2021","csv": ""}
-        info = json.dumps(info)
-        request_json = json.loads(info)
-        resp = requests.post("http://127.0.0.1:9803/daily_report/view_data", json = request_json)
-        response_json = json.loads(resp.text)
-        exp = { "06-05-2021": [ [ "45001", "Abbeville", "South Carolina", "US", "2020-06-08 03:33:22", 34.22333378, -82.46170658, 51, 0, 0, 51, "(Abbeville, South Carolina, US)", 207.9341134260203, 0.0 ], [ "", "", "", "Afghanistan", "2021-01-07 05:22:03", 33.93911, 67.709953, 53105, 2244, 42666, 8195, "(Afghanistan)", 136.4173212518869, 4.22559081065813 ] ] }
-        assert response_json == exp
-        assert resp.status_code == 200
         
 
 # Test interval
 url_daily_interval = "http://127.0.0.1:9803/daily_report/interval"
 class TestDailyInterval(unittest.TestCase):
     def test_valid_interval(self):
+        TestUpdateData.test_valid_update(self)
         info = {"locations": "(Abbeville, South Carolina, US);(Afghanistan)","start": "06-05-2021","end": "06-05-2021","csv": "summary.csv"}
         info = json.dumps(info)
         request_json = json.loads(info)
