@@ -1,4 +1,5 @@
 import sys, os
+from unittest.case import expectedFailure
 sys.path.append(os.path.abspath(os.path.join('..', 'api')))
 import app
 import unittest
@@ -440,6 +441,19 @@ class TestUpdateData(unittest.TestCase):
         exp = "Invalid data body"
         assert resp.text == exp
         assert resp.status_code == 400
+    
+    def test_data_successfully_added(self):
+        info = {"date": "06-05-2021","csv": ""}
+        info = json.dumps(info)
+        request_json = json.loads(info)
+        resp = requests.post("http://127.0.0.1:9803/daily_report/view_data", json = request_json)
+        response_json = json.loads(resp.text)
+        exp = { "06-05-2021": [ [ "45001", "Abbeville", "South Carolina", "US", "2020-06-08 03:33:22", 34.22333378, -82.46170658, 51, 0, 0, 51, "(Abbeville, South Carolina, US)", 207.9341134260203, 0.0 ], [ "", "", "", "Afghanistan", "2021-01-07 05:22:03", 33.93911, 67.709953, 53105, 2244, 42666, 8195, "(Afghanistan)", 136.4173212518869, 4.22559081065813 ] ] }
+        assert response_json == exp
+        assert resp.status_code == 200
+        
+
+# Test 
 
 
 if __name__ == "__main__":
