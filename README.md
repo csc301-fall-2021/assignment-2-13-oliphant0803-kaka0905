@@ -8,6 +8,10 @@ https://github.com/CSSEGISandData/COVID-19/blob/master/csse_covid_19_data
 
 ## Functionalities and Constraints
 More information for testing format can be checked via test/test.py
+We are checking the functionality of our program by sending request.post and check whether the resposne message is matched our expectation instead of testing the
+functions defined in app.py directly, since checking these functions is restricted to a connecting to our server, which means we still need to send request and
+get our response.
+
 ### Time Series Description (/time_series): 
 GET method which returns a json instruction telling the user the steps to follow to begin with using time_series data.
 
