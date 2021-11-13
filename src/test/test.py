@@ -87,7 +87,7 @@ class TestHeader(unittest.TestCase):
         assert resp.text == "Invalid input"
         assert resp.status_code == 400
 
-    def test_header_invalid_year_input1(self):
+    def test_header_invalid_year_input_not_in_range(self):
         info = {'header': "Province/State,Country/Region,Lat,Long,01/22/19,01/23/19", 'csv': ""}
         info = json.dumps(info)
         request_json = json.loads(info)
@@ -95,7 +95,7 @@ class TestHeader(unittest.TestCase):
         assert resp.text == "Invalid header, wrong date format in year"
         assert resp.status_code == 400
 
-    def test_header_invalid_year_input2(self):
+    def test_header_invalid_year_input_incorrect_year_format(self):
         info = {'header': "Province/State,Country/Region,Lat,Long,01/22/2020,01/23/2021", 'csv': ""}
         info = json.dumps(info)
         request_json = json.loads(info)
@@ -162,7 +162,7 @@ class TestAddData(unittest.TestCase):
         assert response_json == exp_json 
         assert resp.status_code == 200
 
-    def test_add_data_invalid_confirm1(self):
+    def test_add_data_invalid_confirm_negative_input(self):
         self.setup_header()
         confirm = ",Afghanistan,33.93911,67.709953,0,0,0,0,0,0,0,0,-1,0,0,0,0,0,0"
         death = ",Afghanistan,33.93911,67.709953,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0"
@@ -175,7 +175,7 @@ class TestAddData(unittest.TestCase):
         assert resp.text == exp 
         assert resp.status_code == 400
 
-    def test_add_data_invalid_confirm2(self):
+    def test_add_data_invalid_confirm_missing_column(self):
         self.setup_header()
         confirm = ",Afghanistan,33.93911,67.709953,0,0,0,0,0,0,0,0,0,0,0,0,0,0"
         death = ",Afghanistan,33.93911,67.709953,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0"
@@ -188,7 +188,7 @@ class TestAddData(unittest.TestCase):
         assert resp.text == exp 
         assert resp.status_code == 400
 
-    def test_add_data_invalid_death1(self):
+    def test_add_data_invalid_death_negative_input(self):
         self.setup_header()
         confirm = ",Afghanistan,33.93911,67.709953,0,1,3,2,0,10,0,0,11,0,0,0,0,0,0"
         death = ",Afghanistan,33.93911,67.709953,0,1,0,0,-1,0,5,0,7,8,9,0,1,0,0"
@@ -201,7 +201,7 @@ class TestAddData(unittest.TestCase):
         assert resp.text == exp 
         assert resp.status_code == 400
 
-    def test_add_data_invalid_death2(self):
+    def test_add_data_invalid_death_missing_column(self):
         self.setup_header()
         confirm = ",Afghanistan,33.93911,67.709953,0,1,3,2,0,10,0,0,11,0,0,0,0,0,0"
         death = ",Afghanistan,33.93911,67.709953,0,1,0,0,0,5,0,7,8,9,0,1,0,0"
@@ -214,7 +214,7 @@ class TestAddData(unittest.TestCase):
         assert resp.text == exp 
         assert resp.status_code == 400
 
-    def test_add_data_invalid_recover1(self):
+    def test_add_data_invalid_recover_negative_input(self):
         self.setup_header()
         confirm = ",Afghanistan,33.93911,67.709953,0,1,3,2,0,10,0,0,11,0,0,0,0,0,0"
         death = ",Afghanistan,33.93911,67.709953,0,1,0,0,0,0,5,0,7,8,9,0,1,0,0"
@@ -227,7 +227,7 @@ class TestAddData(unittest.TestCase):
         assert resp.text == exp
         assert resp.status_code == 400
 
-    def test_add_data_invalid_recover2(self):
+    def test_add_data_invalid_recover_missing_column(self):
         self.setup_header()
         confirm = ",Afghanistan,33.93911,67.709953,0,1,3,2,0,10,0,0,11,0,0,0,0,0,0"
         death = ",Afghanistan,33.93911,67.709953,0,1,0,0,0,0,5,0,7,8,9,0,1,0,0"
@@ -397,7 +397,7 @@ class TestUpdateData(unittest.TestCase):
         assert response_json == exp
         assert resp.status_code == 200
 
-    def test_invalid_data1(self):
+    def test_invalid_data_missing_column(self):
         info = {"date": "06-05-2021","data": ",,Abbeville,South Carolina,US,2020-06-08 03:33:22,34.22333378,-82.46170658,51,0,0,51,(Abbeville, South Carolina, US),207.9341134260203,0.0\n,,,Afghanistan,2021-01-07 05:22:03,33.93911,67.709953,53105,2244,42666,8195,(Afghanistan),136.4173212518869,4.22559081065813"}
         info = json.dumps(info)
         request_json = json.loads(info)
