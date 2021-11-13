@@ -1,12 +1,10 @@
 import sys, os
-from unittest.case import expectedFailure
 sys.path.append(os.path.abspath(os.path.join('..', 'api')))
 import app
 import unittest
-from unittest.mock import MagicMock,Mock,patch
+from unittest.mock import MagicMock
 import sqlite3
 import requests
-from flask import Response
 import json
 
 #################################################################################################################
@@ -453,7 +451,47 @@ class TestUpdateData(unittest.TestCase):
         assert resp.status_code == 200
         
 
-# Test 
+# Test interval
+url_daily_interval = "http://127.0.0.1:9803/daily_report/interval"
+class TestDailyInterval(unittest.TestCase):
+    def test_valid_interval(self):
+        info = {"locations": "(Abbeville, South Carolina, US);(Afghanistan)","start": "06-05-2021","end": "06-05-2021","csv": "summary.csv"}
+        info = json.dumps(info)
+        request_json = json.loads(info)
+        resp = requests.post("http://127.0.0.1:9803/daily_report/interval", json = request_json)
+        response_json = json.loads(resp.text)
+        exp = { "response": "[['(Abbeville, South Carolina, US)', 51, 0, 0, 51], ['(Afghanistan)', 53105, 2244, 42666, 8195]]" }
+        assert response_json == exp
+        assert resp.status_code == 200
+
+    def test_valid_interval_duplicate_location(self):
+        info = {"locations": "(Abbeville, South Carolina, US);(Abbeville, South Carolina, US)","start": "06-05-2021","end": "06-05-2021","csv": "summary.csv"}
+        info = json.dumps(info)
+        request_json = json.loads(info)
+        resp = requests.post("http://127.0.0.1:9803/daily_report/interval", json = request_json)
+        response_json = json.loads(resp.text)
+        exp = { "response": "[['(Abbeville, South Carolina, US)', 51, 0, 0, 51]]" }
+        assert response_json == exp
+        assert resp.status_code == 200
+
+    def test_invalid_interval_wrong_date(self):
+        info = {"locations": "(Abbeville, South Carolina, US);(Afghanistan)","start": "06-05-2021","end": "06-06-2021","csv": "summary.csv"}
+        info = json.dumps(info)
+        request_json = json.loads(info)
+        resp = requests.post("http://127.0.0.1:9803/daily_report/interval", json = request_json)
+        exp = "Invalid Input"
+        assert resp.text == exp
+        assert resp.status_code == 400
+
+    def test_valid_interval_diff_csv(self):
+        info = {"locations": "(Abbeville, South Carolina, US);(Afghanistan)","start": "06-05-2021","end": "06-05-2021","csv": ""}
+        info = json.dumps(info)
+        request_json = json.loads(info)
+        resp = requests.post("http://127.0.0.1:9803/daily_report/interval", json = request_json)
+        response_json = json.loads(resp.text)
+        exp = { "response": "[['(Abbeville, South Carolina, US)', 51, 0, 0, 51], ['(Afghanistan)', 53105, 2244, 42666, 8195]]" }
+        assert response_json == exp
+        assert resp.status_code == 200
 
 
 if __name__ == "__main__":
