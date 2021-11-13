@@ -374,6 +374,73 @@ class TestConnectionDR(unittest.TestCase):
         sqlite3.connect.assert_called_with("databases/dailyreport.db")
         self.assertEqual(dbc, 'connection failed')
 
+# Test update data
+url_update_data = "http://127.0.0.1:9803/daily_report/update_data"
+class TestUpdateData(unittest.TestCase):
+    def test_valid_update(self):
+        info = {"date": "06-05-2021","data": "45001,Abbeville,South Carolina,US,2020-06-08 03:33:22,34.22333378,-82.46170658,51,0,0,51,(Abbeville, South Carolina, US),207.9341134260203,0.0\n,,,Afghanistan,2021-01-07 05:22:03,33.93911,67.709953,53105,2244,42666,8195,(Afghanistan),136.4173212518869,4.22559081065813"}
+        info = json.dumps(info)
+        request_json = json.loads(info)
+        resp = requests.post(url=url_update_data, json = request_json)
+        response_json = json.loads(resp.text)
+        exp = { "response": "Update Daily Report Succuessfully" }
+        assert response_json == exp
+        assert resp.status_code == 200
+
+    def test_invalid_data1(self):
+        info = {"date": "06-05-2021","data": ",,Abbeville,South Carolina,US,2020-06-08 03:33:22,34.22333378,-82.46170658,51,0,0,51,(Abbeville, South Carolina, US),207.9341134260203,0.0\n,,,Afghanistan,2021-01-07 05:22:03,33.93911,67.709953,53105,2244,42666,8195,(Afghanistan),136.4173212518869,4.22559081065813"}
+        info = json.dumps(info)
+        request_json = json.loads(info)
+        resp = requests.post(url=url_update_data, json = request_json)
+        exp = "Invalid data body"
+        assert resp.text == exp
+        assert resp.status_code == 400
+
+    def test_invalid_data2(self):
+        info = {"date": "06-05-2021","data": "45001,Abbeville,South Carolina,US,2020-06-08 03:33:22,34.22333378,-82.46170658,51,0,0,51,(Abbeville, South Carolina, US),207.9341134260203,0.0\n,,,Afghanistan,2021-01-07 05:22:03,33.93911,67.709953,53105,2244,42666,8195,Afghanistan,136.4173212518869,4.22559081065813"}
+        info = json.dumps(info)
+        request_json = json.loads(info)
+        resp = requests.post(url=url_update_data, json = request_json)
+        exp = "Invalid data body"
+        assert resp.text == exp
+        assert resp.status_code == 400
+
+    def test_invalid_data3(self):
+        info = {"date": "06-05-2021","data": "45001,Abbeville,South Carolina,US,2020-06-08 03:33:22,34.22333378,-82.46170658,51,0,51,(Abbeville, South Carolina, US),207.9341134260203,0.0\n,,,Afghanistan,2021-01-07 05:22:03,33.93911,67.709953,53105,2244,42666,8195,(Afghanistan),136.4173212518869,4.22559081065813"}
+        info = json.dumps(info)
+        request_json = json.loads(info)
+        resp = requests.post(url=url_update_data, json = request_json)
+        exp = "Invalid data body"
+        assert resp.text == exp
+        assert resp.status_code == 400
+
+    def test_invalid_data4(self):
+        info = {"date": "06-05-2021","data": "45001,Abbeville,South Carolina,US,2020-06-08 03:33:22,34.22333378,-82.46170658,51,0,0,51,(Abbeville, South Carolina, US),207.9341134260203,0.0\n,,,Afghanistan,2021-01-07 05:22:03,33.93911,67.709953,53105,2244,42666,(Afghanistan),136.4173212518869,4.22559081065813"}
+        info = json.dumps(info)
+        request_json = json.loads(info)
+        resp = requests.post(url=url_update_data, json = request_json)
+        exp = "Invalid data body"
+        assert resp.text == exp
+        assert resp.status_code == 400
+
+    def test_invalid_data5(self):
+        info = {"date": "06-05-2021","data": "45001,Abbeville,South Carolina,US,2020-06-08,34.22333378,-82.46170658,51,0,0,51,(Abbeville, South Carolina, US),207.9341134260203,0.0\n,,,Afghanistan,2021-01-07 05:22:03,33.93911,67.709953,53105,2244,42666,8195,(Afghanistan),136.4173212518869,4.22559081065813"}
+        info = json.dumps(info)
+        request_json = json.loads(info)
+        resp = requests.post(url=url_update_data, json = request_json)
+        exp = "Invalid data body"
+        assert resp.text == exp
+        assert resp.status_code == 400
+
+    def test_invalid_data6(self):
+        info = {"date": "06-05-2021","data": "45001,Abbeville,South Carolina,US,2020-06-08 03:33:22,34.22333378,-82.46170658,51,0,0,51,(Abbeville, South Carolina, US),207.9341134260203,0.0\n,,,Afghanistan,2021-01-07 05:22:03,33.93911,67.709953,53105,2244,42666,8195,(Afghanistan),4.22559081065813"}
+        info = json.dumps(info)
+        request_json = json.loads(info)
+        resp = requests.post(url=url_update_data, json = request_json)
+        exp = "Invalid data body"
+        assert resp.text == exp
+        assert resp.status_code == 400
+
 
 if __name__ == "__main__":
     unittest.main()
